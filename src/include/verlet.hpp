@@ -4,103 +4,45 @@
 
 using namespace std;
 
-struct Vec2
+float length(sf::Vector2f a)
 {
-    double x, y;
-
-    Vec2(double x1, double y1)
-    {
-        x = x1;
-        y = y1;
-    }
-
-    Vec2(Vec2 &A)
-    {
-        x = A.x;
-        y = A.y;
-    }
-
-    Vec2(const Vec2 &A)
-    {
-        x = A.x;
-        y = A.y;
-    }
-
-    Vec2()
-    { x = 0, y = 0; }
-
-    Vec2 operator+(Vec2 A)
-    {
-        Vec2 B;
-        B.x = x + A.x;
-        B.y = y + A.y;
-        return B;
-    }
-    Vec2 operator-(Vec2 A)
-    {
-        Vec2 B;
-        B.x = x - A.x;
-        B.y = y - A.y;
-        return B;
-    }
-    Vec2 operator*(Vec2 A)
-    {
-        Vec2 B;
-        B.x = x * A.x;
-        B.y = y * A.y;
-        return B;
-    }
-    Vec2 operator/(Vec2 A)
-    {
-        Vec2 B;
-        B.x = x / A.x;
-        B.y = y / A.y;
-        return B;
-    }
-
-    Vec2 operator+=(Vec2 A)
-    {
-        x += A.x;
-        y += A.y;
-        return *this;
-    }
-
-    Vec2 operator*(double a)
-    {
-        return Vec2(x * a, y * a);
-    }
-
-    Vec2 operator/(double a)
-    {
-        // if (a == 0) return *this;
-        return Vec2(x / a, y / a);
-    }
-
-    double length()
-    {
-        return sqrt(x*x + y*y);
-    }
-};
-
+    return sqrt(a.x*a.x + a.y*a.y);
+}
 
 struct particle
 {
-    Vec2 position;
-    Vec2 old_position;
-    Vec2 acceleration;
-
+    sf::Vector2f position;
+    sf::Vector2f old_position;
+    sf::Vector2f acceleration;
+    float radius;
     sf::CircleShape shape;
+    sf::Vector2f rr;
 
     particle()
     {
-        shape.setRadius(5.0f);
+        position = {400.f, 400.f};
+        old_position = position;
+        radius = 10.f;
+        rr = {radius, radius};
+        shape.setRadius(radius);
         shape.setFillColor(sf::Color::Green);
-        shape.setPosition(sf::Vector2f(position.x-5.f, position.y-5.f));
+        shape.setPosition(position-rr);
     }
 
-    void update(double dt)
+    particle(sf::Vector2f pos)
     {
-        const Vec2 velocity = position - old_position;
+        position = pos;
+        old_position = position;
+        radius = 10.f;
+        rr = {radius, radius};
+        shape.setRadius(radius);
+        shape.setFillColor(sf::Color::Green);
+        shape.setPosition(position-rr);
+    }
+
+    void update(float dt)
+    {
+        const sf::Vector2f velocity = position - old_position;
 
         old_position = position;
 
@@ -108,10 +50,10 @@ struct particle
 
         acceleration = {};
 
-        shape.setPosition(sf::Vector2f(position.x, position.y));
+        shape.setPosition(position - rr);
     }
 
-    void accelerate(Vec2 acc)
+    void accelerate(sf::Vector2f acc)
     {
         acceleration += acc;
     }
@@ -120,12 +62,20 @@ struct particle
 
 struct Solver
 {
-    Vec2 gravity = {0.f, 100.f};
+    sf::Vector2f gravity = {0.f, 5.f};
     vector<particle> P;
+    int n;
 
-    void init(int a)
+    Solver(int a)
     {
-        P.resize(a);
+        P = vector<particle>(a);
+        n = a;
+    }
+
+    void add_particle(sf::Vector2f pos)
+    {
+        P.emplace_back(particle(pos));
+        n++;
     }
 
     void apply_gravity()
@@ -134,7 +84,7 @@ struct Solver
         particle.accelerate(gravity);
     }
 
-    void update_position(double dt)
+    void update_position(float dt)
     {
         for (auto &particle: P)
         particle.update(dt);
@@ -142,26 +92,53 @@ struct Solver
 
     void apply_constraint()
     {
-        Vec2 center = {450.f, 450.f};
-        double radius = 400.f;
+        sf::Vector2f center = {450.f, 450.f};
+        float radius = 200.f;
 
         for (auto &particle: P)
         {
-            Vec2 to_obj = particle.position - center;
-            double dist = to_obj.length();
+            sf::Vector2f to_obj = particle.position - center;
+            float dist = length(to_obj);
 
-            if (dist > radius - 10.f)
+            if (dist > radius - particle.radius)
             {
-                Vec2 n = to_obj / to_obj.length() * (radius - 10.f);
+                sf::Vector2f n = to_obj / length(to_obj) * (radius - particle.radius);
                 particle.position = center + n;
+            }
+        }
+
+        // float border_x = 900.f, border_y = 900.f
+        // for (auto &particle: P)
+        // {
+        //     if (particle.position.x > )
+        // }
+    }
+
+    void solve_collisions()
+    {
+        for (int i = 0; i < n-1; i++)
+        for (int j = i+1; j < n; j++)
+        {
+            sf::Vector2f col_axis = P[i].position - P[j].position;
+            float dist = length(col_axis);
+            if (dist < P[i].radius+P[j].radius)
+            {
+                col_axis = col_axis / dist;
+                dist = P[i].radius+P[j].radius - dist;
+                P[i].position = P[i].position + col_axis * .5f * dist;
+                P[j].position = P[j].position - col_axis * .5f * dist;
             }
         }
     }
 
-    void update(double dt)
+    void update(float dt)
     {
-        apply_gravity();
-        apply_constraint();
-        update_position(dt);
+        for (int i = 0; i < 2; i++)
+        {
+            apply_gravity();
+            apply_constraint();
+            solve_collisions();
+            update_position(dt);
+        }
     }
 };

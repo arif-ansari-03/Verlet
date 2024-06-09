@@ -9,15 +9,15 @@ int main()
     sf::ContextSettings settings;
     settings.antialiasingLevel = 0;
     sf::RenderWindow window(sf::VideoMode(900, 900), "SFML works!", sf::Style::Default, settings);
-    sf::CircleShape shape(400.f);
+    sf::CircleShape shape(200.f);
     shape.setFillColor(sf::Color::White);
-    shape.setPosition(55.f, 50.f);
+    shape.setPosition(250.f, 250.f);
 
 
-    Solver solver;
-    solver.init(2);
-    solver.P[0].position = solver.P[0].old_position = {300.f, 700.f};
-    solver.P[1].position = solver.P[1].old_position = {300.f, 500.f};
+    Solver solver(0);
+
+    int i = 0;
+    int nn = 100;
 
     while (window.isOpen())
     {
@@ -27,12 +27,14 @@ int main()
             if (event.type == sf::Event::Closed)
                 window.close();
         }
+
+        if (++i <= nn * 600 && !(i%600)) solver.add_particle({400.f, 400.f});
         
         window.clear();
         
         window.draw(shape);
 
-        solver.update(0.001);
+        solver.update(0.005);
 
         for (auto &particle: solver.P)
         {
@@ -40,9 +42,6 @@ int main()
         }
         window.display();
     }
-
-    // int qqq;
-    // cin >> qqq;
 
     return 0;
 }
